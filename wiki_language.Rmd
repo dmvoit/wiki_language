@@ -1,6 +1,6 @@
 ---
 title: "Wiki language"
-output: html_notebook
+output: rmarkdown::github_document
 ---
 
 
@@ -34,4 +34,10 @@ content(response)$items[[1]]$views
 ```{r}
 #get_total_views <- function()
 ```
+
+```{r}
+str_c("https://wikimedia.org/api/rest_v1/metrics/pageviews/aggregate/","de.wikipedia.org","/all-access/user/monthly/",20180901,"/",20180930)
+```
+
+
 
