@@ -34,15 +34,18 @@ content(response)$items[[1]]$views
 
 ```{r}
 get_total_views <- function(project, site_type, year_month) {
-  base_url <- "https://wikimedia.org/api/rest_v1/metrics/pageviews/aggregate/"
+  base_url <- "https://wikimedia.org/api/rest_v1/metrics/pageviews/aggregate"
+  
   sart_date <- ymd(str_c(year_month,"-01"))
   end_date <- ymd(str_c(format(sart_date, format="%Y-%m"),"-", days_in_month(sart_date)))
   
-  str_c(base_url, project,"/",site_type,"/user/monthly/",
-        format(sart_date, format="%Y%m%d"),"/",
-        format(end_date, format="%Y%m%d"))
+  sart_date_str <- format(sart_date, format='%Y%m%d')
+  end_date_str <- format(end_date, format='%Y%m%d')
+  
+  str_glue("{base_url}/{project}/{site_type}/user/monthly/{sart_date_str}/{end_date_str}")
   
 }
+get_total_views(project = "de.wikipedia.org","mobile-web","2018-01")
 ```
 
 ```{r}
@@ -104,4 +107,74 @@ time_data <- function() {
 
 time_data()
 ```
+
+### languages to select
+https://stats.wikimedia.org/EN/TablesPageViewsMonthlyCombined.htm
+https://stats.wikimedia.org/EN/TablesPageViewsMonthlyMobile.htm
+
+```{r}
+langs_top100 <- c("en","de","ru","es","ja","fr","zh","it","pl","pt","nl","cs","ko","sv","ar","uk","fi","fa","hu","vi","id","he","th","no","da","ca","el","ro","tr","bg","eu","sr","sk","simple","et","hr","lt","sl","ka","ms","hi","lv","kk","az","hy","sh","sq","bn","tl","zh-yue","ta","gl","bs","mk","eo","be","af","uz","nn","mr","ml","ur","is","ast","la","mn","arz","an","te","sco","ky","cy","sw","ceb","als","lb","tt","war","kn","ga","br","oc","zh-min-nan","yi","si","ckb","ba","my","fy","bar","jv","tg","io","nds","pa","ku","ne","scn","su","pnb")
+
+langs <- c("en","de","ru","es","ja","fr","zh","it","pl","pt","nl","cs","ko","sv","ar","uk","fi","fa","hu","vi","id","he","th","no","da","ca","el","ro","tr","bg","eu","sr","sk","simple","et","hr","lt","sl","ka","ms","hi","lv","kk","az","hy","sh","sq","bn","tl","zh-yue","ta","gl","bs","mk","eo","be","af","uz","nn","mr","ml","ur","is","ast","la","mn","arz","an","te","sco","ky","cy","sw","ceb","als","lb","tt","war","kn","ga","br","oc","zh-min-nan","yi","si","ckb","ba","my","fy","bar","jv","tg","io","nds","pa","ku","ne","scn","su","pnb")
+langs_names <- c("English","German","Russian","Spanish","Japanese","French","Chinese","Italian","Polish","Portuguese","Dutch","Czech","Korean","Swedish","Arabic","Ukrainian","Finnish","Persian","Hungarian","Vietnamese","Indonesian","Hebrew","Thai","Norwegian","Danish","Catalan","Greek","Romanian","Turkish")
+length(langs)
+length(langs_names)
+
+```
+									Bulgarian	Slovak	Croatian	Georgian	Latvian	Armenian	Bengali	Tamil	Macedonian	Afrikaans	Marathi	Icelandic	Mongolian	Telugu	Welsh	Alemannic	Waray-Waray	Breton	Yiddish	Bashkir	Bavarian	Ido	Kurdish	Sundanese	Interlingua	Chuvash	Venetian	Lombard	Oriya	Bihari	Somali	Volapük	Haitian	Sindhi	Hakka	Upper Sorbian	Piedmontese	Igbo	Turkmen	Samogitian 0.5,EU]	Emilian-Romagnol	Gan	Guarani	Sardinian	Laotian	Tibetan	Ligurian	Ladino	Corsican	Uyghur	Erzya	Arpitan	Lingala	Norman	Crimean Tatar	Maori	Interlingue	Avar	Kabyle	Northern Sotho	Novial	Tetum	Aramaic	Kinyarwanda	Norfolk	Pangasinan	Hawai'ian	Tuvan	Pali	Inuktitut	Bambara	Chamorro	Kabardian	Romani	Cheyenne	Ewe	Lak	Dzongkha	Tumbuka	Setswana	Tulu	Venda	Atikamekw	Choctaw	Moldovan	Muskogee	Kwanyama
+ 											Basque	Simple English	Lithuanian	Malay	Kazakh	Serbo-Croatian	Tagalog	Galician	Esperanto	Uzbek	Malayalam	Asturian	Egyptian Arabic	Scots	Swahili	Luxembourgish	Kannada	Occitan	Sinhala	Burmese	Javanese	Low Saxon	Nepali	Western Panjabi	Amharic	Quechua	Sakha	Assamese	Gujarati	Limburgish	Belarusian (TaraÅ¡kievic)	Scots Gaelic	Zazaki	Pashto	Ossetic	Mazandarani	Central Bicolano	West Flemish	Cornish	Manx	Neapolitan	Vepsian	Silesian	Minangkabau	Voro	Maithili	Cassubian	Saterland Frisian	Maltese	Ripuarian	Acehnese	Buryat	Karachay-Balkar	Mirandese	Banjar	Papiamentu	Tarantino	Aymara	Divehi	Lojban	Greenlandic	Zulu	Western Mari	Pennsylvania German	Wolof	Cherokee	Kongo	Old Church Slavonic	Bislama	Oromo	Samoan	Buginese	Komi-Permyak	Akan	Twi	Pontic	Sangro	Fijian	Ganda	Sesotho	Kirundi	Tigrinya	Cree	Herero	Afar	Marshallese		All languages
+ 	 											Serbian	Estonian	Slovene	Hindi	Azeri	Albanian	Cantonese	Bosnian	Belarusian	Nynorsk	Urdu	Latin	Aragonese	Kyrghyz	Cebuano	Tatar	Irish	Min Nan	Sorani	Frisian	Tajik	Punjabi	Sicilian	Faroese	Ilokano	Chechen	Wu	Malagasy	Khmer	Yoruba	Classical Chinese	North Frisian	Sanskrit	Fiji Hindi	Min Dong	Anglo-Saxon	Rusyn	Nepal Bhasa	Dutch Low Saxon	Walloon	Northern Sami	Eastern Mari	Lower Sorbian	Kapampangan	Nahuatl	Banyumasan	Bishnupriya Manipuri	Abkhazian	Friulian	Extremaduran	Komi	Romansh	Udmurt	Lezgian	Zealandic	Hausa	Picard	Karakalpak	Zhuang	Shona	Kalmyk	Navajo	Chavacano	Tok Pisin	Aromanian	Tsonga	Nauruan	Xhosa	Goan Konkani	Chichewa	Moksha	Latgalian	Kikuyu	Gothic	Gilaki	Siswati	Tahitian	Sranan	Inupiak	Fulfulde	Tongan	Kashmiri	Ndonga	Kanuri	Yi	Hiri Motu	
+
+
+
+```{r}
+response <- GET("https://wikimedia.org/api/rest_v1/metrics/pageviews/top-by-country/ru.wikipedia.org/all-access/2018/09")
+```
+
+
+```{r}
+content(response)$items[[1]]$project
+content(response)$items[[1]]$access
+content(response)$items[[1]]$year
+content(response)$items[[1]]$month
+content(response)$items[[1]]$project
+content(response)$items[[1]]$countries[0:3]
+#content(response)
+```
+
+"https://wikimedia.org/api/rest_v1/metrics/pageviews/top-by-country/ru.wikipedia.org/all-access/2018/09"
+
+```{r}
+get_views_per_countrie <- function(project, site_type, year_month) {
+  base_url <- "https://wikimedia.org/api/rest_v1/metrics/pageviews/top-by-country"
+  date <- str_split(year_month,"-")
+  yr <- date[[1]][1]
+  mnth <- date[[1]][2]
+  str_glue("{base_url}/{project}/{site_type}/{yr}/{mnth}")
+  
+}
+
+get_views_per_countrie("ru.wikipedia.org","all-access","2019-08")
+```
+
+starts at "2015-05"
+
+```{r}
+get_views_per_countrie("ru.wikipedia.org","all-access","2019-08") %>% 
+  GET() %>% 
+  content() %>% 
+  pluck(1,1,"countries") %>%  head(3)
+```
+
+```{r}
+get_views_per_countrie("ru.wikipedia.org","all-access","2015-05") %>% 
+  GET() %>% 
+  content() %>% 
+  pluck(1,1,"countries") %>%  head(3)
+```
+
+
+
+
+
 
