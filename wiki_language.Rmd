@@ -90,5 +90,16 @@ curl -X GET "https://wikimedia.org/api/rest_v1/metrics/legacy/pagecounts/aggrega
 
 ```{r}
 years <- 2008:2020
+all_years <- c()
+
+for (y in years) {
+  all_years <- c(all_years, gen_months(y))  
+}
+
+legacy_years <- all_years[1:which(all_years =="2015-06")]
+new_years <- all_years[which(all_years =="2015-07"):which(all_years =="2020-07")]
+
+legacy_years
+new_years
 ```
 
