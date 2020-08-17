@@ -9,13 +9,14 @@ library(tidyverse)
 library(xml2)
 library(RCurl)
 library(RSQLite)
-library(httr)
-
+library(httr) # request
+library(lubridate) # dates
 ```
 
 
 ```{r}
 conn <- dbConnect(RSQLite::SQLite(), "wiki_lang.db")
+dbDisconnect(conn)
 ```
 
 ```{r}
@@ -32,12 +33,62 @@ content(response)$items[[1]]$views
 ```
 
 ```{r}
-#get_total_views <- function()
+get_total_views <- function(project, site_type, year_month) {
+  base_url <- "https://wikimedia.org/api/rest_v1/metrics/pageviews/aggregate/"
+  sart_date <- ymd(str_c(year_month,"-01"))
+  end_date <- ymd(str_c(format(sart_date, format="%Y-%m"),"-", days_in_month(sart_date)))
+  
+  str_c(base_url, project,"/",site_type,"/user/monthly/",
+        format(sart_date, format="%Y%m%d"),"/",
+        format(end_date, format="%Y%m%d"))
+  
+}
 ```
 
 ```{r}
 str_c("https://wikimedia.org/api/rest_v1/metrics/pageviews/aggregate/","de.wikipedia.org","/all-access/user/monthly/",20180901,"/",20180930)
 ```
+## project
+"de.wikipedia.org"
 
+## site_type
+"mobile-web"
 
+```{r}
+get_total_views(project = "de.wikipedia.org","mobile-web","2018-01")
+```
+
+```{r}
+get_total_views(project = "de.wikipedia.org","mobile-web","2018-01") %>% 
+  GET() %>% 
+  content() %>%  
+  #`[[`(1) %>%  `[[`(1)
+  pluck(1, 1)
+  
+```
+```{r}
+get_total_views(project = "de.wikipedia.org","mobile-web","2018-01") %>% 
+  GET() %>% 
+  content() %>%  
+  pluck(1,1)
+  
+```
+```{r}
+gen_months <- function(in_year) {
+  1:12 %>%  
+  str_pad(width = 2, pad = "0") %>% 
+  str_c(in_year,"-",.) # . input reference
+}
+
+gen_months(2019)
+```
+"2015-07" - beginning
+
+## legacy
+curl -X GET "https://wikimedia.org/api/rest_v1/metrics/legacy/pagecounts/aggregate/ru.wikipedia.org/all-sites/monthly/2014090100/2014093000" -H "accept: application/json"
+"2008-01" - beginning
+
+```{r}
+years <- 2008:2020
+```
 
