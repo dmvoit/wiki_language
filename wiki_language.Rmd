@@ -8,15 +8,21 @@ output: rmarkdown::github_document
 library(tidyverse)
 library(xml2)
 library(RCurl)
+library(curl)
 library(RSQLite)
 library(httr) # request
 library(lubridate) # dates
+# geo
+library(rnaturalearth)
+library(rnaturalearthdata)
+library(sf)
 ```
 
 
 ```{r}
 conn <- dbConnect(RSQLite::SQLite(), "wiki_lang.db")
 dbDisconnect(conn)
+#https://www.datacamp.com/community/tutorials/sqlite-in-r
 ```
 
 ```{r}
@@ -126,6 +132,41 @@ length(langs_names)
  	 											Serbian	Estonian	Slovene	Hindi	Azeri	Albanian	Cantonese	Bosnian	Belarusian	Nynorsk	Urdu	Latin	Aragonese	Kyrghyz	Cebuano	Tatar	Irish	Min Nan	Sorani	Frisian	Tajik	Punjabi	Sicilian	Faroese	Ilokano	Chechen	Wu	Malagasy	Khmer	Yoruba	Classical Chinese	North Frisian	Sanskrit	Fiji Hindi	Min Dong	Anglo-Saxon	Rusyn	Nepal Bhasa	Dutch Low Saxon	Walloon	Northern Sami	Eastern Mari	Lower Sorbian	Kapampangan	Nahuatl	Banyumasan	Bishnupriya Manipuri	Abkhazian	Friulian	Extremaduran	Komi	Romansh	Udmurt	Lezgian	Zealandic	Hausa	Picard	Karakalpak	Zhuang	Shona	Kalmyk	Navajo	Chavacano	Tok Pisin	Aromanian	Tsonga	Nauruan	Xhosa	Goan Konkani	Chichewa	Moksha	Latgalian	Kikuyu	Gothic	Gilaki	Siswati	Tahitian	Sranan	Inupiak	Fulfulde	Tongan	Kashmiri	Ndonga	Kanuri	Yi	Hiri Motu	
 
 
+```{r}
+
+download.file("https://stats.wikimedia.org/EN/TablesPageViewsMonthlyMobile.htm", "./data/TablesPageViewsMonthlyMobile.htm")
+```
+```{r}
+lang_page <- read_html("https://stats.wikimedia.org/EN/TablesPageViewsMonthlyOriginalCombined.htm")
+```
+
+
+pluck(1,1,"countries") %>%  
+  transpose() %>% 
+  lapply(FUN = unlist)  %>% 
+  as_tibble() -> de_data
+
+```{r}
+lang_page %>% 
+  xml_find_all("//*[contains(text(),'All&nbsp;languages')][3]") %>% 
+  xml_text() %>% 
+  str_split(';\nll1') %>% 
+  unlist() %>% 
+  tail(-1) %>% head(-1) %>% head(100) %>% 
+  str_replace_all( "([)']|['()])", "") %>% 
+  str_split(',') %>%  
+  transpose() %>% lapply(FUN = unlist) %>% 
+  map(as_tibble) -> lang_cols
+  
+
+names(lang_cols[[1]])<-"code"
+names(lang_cols[[2]])<-"name"
+bind_cols(lang_cols[[1]],lang_cols[[2]]) %>% 
+  mutate(code=tolower(code)) -> language_codes
+
+language_codes
+```
+
 
 ```{r}
 response <- GET("https://wikimedia.org/api/rest_v1/metrics/pageviews/top-by-country/ru.wikipedia.org/all-access/2018/09")
@@ -159,6 +200,7 @@ get_views_per_countrie("ru.wikipedia.org","all-access","2019-08")
 
 starts at "2015-05"
 
+
 ```{r}
 get_views_per_countrie("ru.wikipedia.org","all-access","2019-08") %>% 
   GET() %>% 
@@ -173,8 +215,152 @@ get_views_per_countrie("ru.wikipedia.org","all-access","2015-05") %>%
   pluck(1,1,"countries") %>%  head(3)
 ```
 
+old
+stats.wikimedia.org/archive/squid_reports/2011-03/SquidReportPageViewsPerCountryBreakdownHuge.htm
+stats.wikimedia.org/archive/squid_reports/2012-12/SquidReportPageViewsPerCountryBreakdownHuge.htm
+stats.wikimedia.org/archive/squid_reports/2013-09/SquidReportPageViewsPerCountryBreakdownHuge.htm
+stats.wikimedia.org/archive/squid_reports/2014-06/SquidReportPageViewsPerCountryBreakdownHuge.htm
+stats.wikimedia.org/archive/squid_reports/2014-12/SquidReportPageViewsPerCountryBreakdownHuge.htm
+stats.wikimedia.org/archive/squid_reports/2015-01/SquidReportPageViewsPerCountryBreakdownHuge.htm
+stats.wikimedia.org/archive/squid_reports/2015-02/SquidReportPageViewsPerCountryBreakdownHuge.htm
+stats.wikimedia.org/archive/squid_reports/2015-03/SquidReportPageViewsPerCountryBreakdownHuge.htm
+stats.wikimedia.org/archive/squid_reports/2015-04/SquidReportPageViewsPerCountryBreakdownHuge.htm
+stats.wikimedia.org/archive/squid_reports/2015-05/SquidReportPageViewsPerCountryBreakdownHuge.htm
+stats.wikimedia.org/archive/squid_reports/2015-06/SquidReportPageViewsPerCountryBreakdownHuge.htm
+----------
+
+
+##Map
+```{r}
+get_views_per_countrie("de.wikipedia.org","all-access","2016-05") %>% 
+  GET() %>% 
+  content() %>% 
+  pluck(1,1,"countries") %>%  
+  transpose() %>% 
+  lapply(FUN = unlist)  %>% 
+  as_tibble() -> de_data
+
+de_data
+```
+
+
+```{r}
+get_total_views(project = "de.wikipedia.org","all-access","2016-05") %>% 
+  GET() %>% 
+  content() %>%  
+  pluck(1, 1 ,'views') -> de_total_views
+```
 
 
 
+```{r}
+de_data %>% 
+  select(country,views_ceil) %>% 
+  mutate(views_prc=round(views_ceil/de_total_views,3)) -> de_data
+# false needs request for every
+de_data
 
+```
+
+
+```{r}
+world <- ne_countries(scale = "medium", returnclass = "sf")
+```
+
+```{r}
+world
+```
+
+
+```{r}
+# http://www.statoids.com/wab.html
+world$iso_a2
+```
+```{r}
+world %>% 
+  left_join(de_data,by = c("iso_a2"="country")) %>% 
+  head(10) %>%  
+  select(brk_name,views_ceil)
+```
+
+```{r fig.height=5, fig.width=8}
+# https://www.r-spatial.org/r/2018/10/25/ggplot2-sf.html
+# https://dcl-2017-01.github.io/curriculum/notes/spatial-vis.html
+# https://datascience.blog.wzb.eu/2019/04/30/zooming-in-on-maps-with-sf-and-ggplot2/
+world %>% 
+  left_join(de_data,by = c("iso_a2"="country")) %>% 
+  ggplot() +
+  geom_sf(aes(fill = views_ceil)) +
+  scale_fill_viridis_c(option = "plasma", trans = "sqrt") +
+  coord_sf(xlim = c(-12, 40), ylim = c(30, 70), expand = T)
+
+```
+
+
+```{r fig.height=5, fig.width=8}
+
+world %>% 
+  left_join(de_data,by = c("iso_a2"="country")) %>% 
+  ggplot() +
+  geom_sf(aes(fill = views_ceil)) +
+  scale_fill_viridis_c(option = "plasma", trans = "sqrt") +
+  coord_sf( crs = "+proj=laea")
+
+```
+
+```{r fig.width=8, message=FALSE, warning=FALSE}
+
+
+world %>% 
+  st_crop(xmin = -20, xmax = 45, ymin = 30, ymax = 73) %>% 
+  left_join(de_data,by = c("iso_a2"="country")) %>% 
+  ggplot() +
+  geom_sf(aes(fill = views_ceil)) + theme_bw() +
+  scale_fill_viridis_c(option = "plasma", trans = "sqrt") 
+  
+
+```
+
+```{r message=FALSE, warning=FALSE}
+# read
+# https://datascience.blog.wzb.eu/2019/04/30/zooming-in-on-maps-with-sf-and-ggplot2/
+
+target_crs <- '+proj=moll'
+disp_win_wgs84 <- st_sfc(st_point(c(-15, 30)), st_point(c(75, 73)), crs = st_crs(4326))
+disp_win_trans <- st_transform(disp_win_wgs84, crs = target_crs)
+disp_win_coord <- st_coordinates(disp_win_trans)
+
+
+world %>% 
+  st_transform(worldmap, crs = target_crs) %>% 
+  left_join(de_data,by = c("iso_a2"="country")) %>% 
+  ggplot() +
+  geom_sf(aes(fill = views_ceil)) + theme_bw() +
+  scale_fill_viridis_c(option = "plasma", trans = "sqrt") +
+  coord_sf(xlim = disp_win_coord[,'X'], ylim = disp_win_coord[,'Y'],
+             datum = target_crs, expand = FALSE)
+```
+
+
+```{r fig.width=10}
+# https://cfss.uchicago.edu/notes/vector-maps/
+
+target_crs <- '+proj=merc'
+disp_win_wgs84 <- st_sfc(st_point(c(-23, 30)), st_point(c(47, 71.5)), crs = st_crs(4326))
+disp_win_trans <- st_transform(disp_win_wgs84, crs = target_crs)
+disp_win_coord <- st_coordinates(disp_win_trans)
+
+
+world %>% 
+  st_transform(worldmap, crs = target_crs) %>% 
+  left_join(de_data,by = c("iso_a2"="country")) %>% 
+  ggplot() +
+  geom_sf(aes(fill = views_ceil)) + theme_bw() +
+  scale_fill_viridis_c(option = "plasma", trans = "sqrt") +
+  coord_sf(xlim = disp_win_coord[,'X'], ylim = disp_win_coord[,'Y'],
+             datum = target_crs, expand = FALSE)
+
+```
+
+http://rstudio-pubs-static.s3.amazonaws.com/467086_decad3a6c9fd44a2a7d9f06c3ae56970.html
 
