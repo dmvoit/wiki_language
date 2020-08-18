@@ -1,0 +1,102 @@
+---
+title: "Wiki language final"
+output: html_notebook
+---
+
+
+```{r message=FALSE, warning=FALSE}
+library(tidyverse)
+library(xml2)
+#library(RCurl)
+library(curl)
+library(RSQLite)
+library(httr) # request
+library(lubridate) # dates
+# geo
+library(rnaturalearth)
+library(rnaturalearthdata)
+library(sf)
+```
+
+
+###
+
+
+```{r}
+
+get_views_per_country_url <- function(project, site_type, year_month) {
+  base_url <- "https://wikimedia.org/api/rest_v1/metrics/pageviews/top-by-country"
+  date <- str_split(year_month,"-")
+  yr <- date[[1]][1]
+  mnth <- date[[1]][2]
+  str_glue("{base_url}/{project}/{site_type}/{yr}/{mnth}")
+  
+}
+
+
+get_views_per_country_data <- function(url) {
+  GET(url) %>% 
+    content() %>% 
+    pluck(1,1,"countries") %>%  
+    transpose() %>% 
+    lapply(FUN = unlist)  %>% 
+    as_tibble() %>% 
+    select(country,views=views_ceil)
+}
+
+
+get_views_per_country <- function(wiki_lang, year_month) {
+  get_views_per_country_url(str_c(wiki_lang,".wikipedia.org"),"all-access",year_month) %>% 
+    get_views_per_country_data() -> result
+  
+  get_views_per_country_url(str_c("fr",".wikipedia.org"),"mobile-web",year_month) %>% 
+    get_views_per_country_data() -> result_mobile
+  
+  result %>% 
+    left_join(result_mobile,by = c("country")) %>% 
+    select(country, views_total=views.x, views_mobile=views.y) %>% 
+    mutate(views_mobile=ifelse(is.na(views_mobile), 0, views_mobile)) %>% 
+    mutate(lang=wiki_lang,date=year_month) %>% 
+    select(date,lang,country,views_total,views_mobile)
+  
+}
+
+get_views_per_country("fr","2016-05")
+```
+
+```{r}
+get_total_views_url <- function(project, site_type, year_month) {
+  base_url <- "https://wikimedia.org/api/rest_v1/metrics/pageviews/aggregate"
+  
+  sart_date <- ymd(str_c(year_month,"-01"))
+  end_date <- ymd(str_c(format(sart_date, format="%Y-%m"),"-", days_in_month(sart_date)))
+  
+  sart_date_str <- format(sart_date, format='%Y%m%d')
+  end_date_str <- format(end_date, format='%Y%m%d')
+  
+  str_glue("{base_url}/{project}/{site_type}/user/monthly/{sart_date_str}/{end_date_str}")
+  
+}
+get_total_views_data <- function(url) {
+  GET(url) %>% 
+    content() %>%  
+    pluck(1, 1 ,'views')
+}
+
+get_total_views <- function(wiki_lang, year_month) {
+  get_total_views_url(str_c(wiki_lang,".wikipedia.org"),"all-access",year_month) %>%  
+    get_total_views_data() -> views_total
+  
+  get_total_views_url(str_c(wiki_lang,".wikipedia.org"),"mobile-web",year_month) %>%  
+    get_total_views_data() -> views_mobile
+  
+  tibble(date=year_month,lang=wiki_lang,views_total,views_mobile)
+}
+
+
+get_total_views("de","2018-01") 
+
+```
+
+
+

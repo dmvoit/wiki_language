@@ -1,5 +1,5 @@
 ---
-title: "Wiki language"
+title: "Wiki language research"
 output: rmarkdown::github_document
 ---
 
@@ -161,14 +161,14 @@ content(response)$items[[1]]$access
 content(response)$items[[1]]$year
 content(response)$items[[1]]$month
 content(response)$items[[1]]$project
-content(response)$items[[1]]$countries[0:3]
+content(response)$items[[1]]$countries[0:2]
 #content(response)
 ```
 
 "https://wikimedia.org/api/rest_v1/metrics/pageviews/top-by-country/ru.wikipedia.org/all-access/2018/09"
 
 ```{r}
-get_views_per_countrie <- function(project, site_type, year_month) {
+get_views_per_country_url <- function(project, site_type, year_month) {
   base_url <- "https://wikimedia.org/api/rest_v1/metrics/pageviews/top-by-country"
   date <- str_split(year_month,"-")
   yr <- date[[1]][1]
@@ -177,21 +177,21 @@ get_views_per_countrie <- function(project, site_type, year_month) {
   
 }
 
-get_views_per_countrie("ru.wikipedia.org","all-access","2019-08")
+get_views_per_country_url("ru.wikipedia.org","all-access","2019-08")
 ```
 
 starts at "2015-05"
 
 
 ```{r}
-get_views_per_countrie("ru.wikipedia.org","all-access","2019-08") %>% 
+get_views_per_country_url("ru.wikipedia.org","all-access","2019-08") %>% 
   GET() %>% 
   content() %>% 
   pluck(1,1,"countries") %>%  head(3)
 ```
 
 ```{r}
-get_views_per_countrie("ru.wikipedia.org","all-access","2015-05") %>% 
+get_views_per_country_url("ru.wikipedia.org","all-access","2015-05") %>% 
   GET() %>% 
   content() %>% 
   pluck(1,1,"countries") %>%  head(3)
@@ -224,6 +224,41 @@ get_views_per_countrie("de.wikipedia.org","all-access","2016-05") %>%
 
 de_data
 ```
+
+```{r}
+get_views_per_country_data <- function(url) {
+  GET(url) %>% 
+    content() %>% 
+    pluck(1,1,"countries") %>%  
+    transpose() %>% 
+    lapply(FUN = unlist)  %>% 
+    as_tibble() %>% 
+    select(country,views=views_ceil)
+}
+  
+```
+
+
+```{r}
+get_views_per_country_url("fr.wikipedia.org","all-access","2016-05") %>% 
+  get_views_per_country_data()
+```
+
+
+```{r}
+get_views_per_country <- function(wiki_lang, site_type, year_month) {
+  get_views_per_country_url(str_c(wiki_lang,".wikipedia.org"),"all-access","2016-05") %>% 
+    get_views_per_country_data() -> result
+  
+  result %>% 
+    mutate(lang=wiki_lang,type=site_type,date=year_month) %>% 
+    select(date,type,lang,country,views)
+  
+}
+
+get_views_per_country("fr","all-access","2016-05")
+```
+
 
 
 ```{r}
