@@ -12,6 +12,7 @@ library(curl)
 library(RSQLite)
 library(httr) # request
 library(lubridate) # dates
+library(stringi) # html2txt
 # geo
 library(rnaturalearth)
 library(rnaturalearthdata)
@@ -97,6 +98,82 @@ get_total_views <- function(wiki_lang, year_month) {
 get_total_views("de","2018-01") 
 
 ```
+```{r}
+unescape_html <- function(str){
+  xml2::xml_text(xml2::read_html(paste0("<x>", str, "</x>")))
+}
+
+# returns top 140 languages of wikipedia
+get_languages <- function() {
+  read_html("https://stats.wikimedia.org/EN/TablesPageViewsMonthlyOriginalCombined.htm") %>%
+    xml_find_all("//*[contains(text(),'All&nbsp;languages')][3]") %>% 
+    xml_text() %>% 
+    str_split(';\nll1') %>% 
+    unlist() %>% 
+    tail(-1) %>% head(-1) %>% head(120) %>% 
+    str_replace_all( "([)']|['()])", "") %>% 
+    str_split(',') %>%  
+    transpose() %>% lapply(FUN = unlist) %>% 
+    map(as_tibble) -> lang_cols
+  
+  names(lang_cols[[1]])<-"wiki_name"
+  names(lang_cols[[2]])<-"language"
+
+  
+  #lang_cols[[2]]$language<-sapply(lang_cols[[2]]$language, function(x) unescape_html(x))
+
+  bind_cols(lang_cols[[1]],lang_cols[[2]]) %>% 
+    mutate(wiki_name=tolower(wiki_name))
+}
+
+lang <- get_languages()
+lang
+```
+
+
+### SQLite
+
+```{r}
+conn <- dbConnect(RSQLite::SQLite(), "wiki_lang.db")
+```
+
+
+```{r}
+dbWriteTable(conn, "languages", get_languages())
+dbListTables(conn)
+```
+
+```{r}
+dbDisconnect(conn)
+```
 
 
 
+```{r}
+date <- "2020-05"
+langs <- get_languages()
+
+for (lang in langs$wiki_name) {
+  dbWriteTable(conn,"total", get_total_views(lang, date) , append = TRUE)
+  Sys.sleep(1)
+}
+
+dbListTables(conn)
+```
+
+```{r}
+for (lang in langs$wiki_name) {
+  dbWriteTable(conn,"views_per_country", get_views_per_country(lang,date) , append = TRUE)
+  Sys.sleep(1)
+}
+
+dbListTables(conn)
+```
+
+
+### SQLite use
+```{r}
+conn <- dbConnect(RSQLite::SQLite(), "wiki_lang.db")
+dbGetQuery(conn, "SELECT * FROM languages LIMIT 10")
+dbDisconnect(conn)
+```
