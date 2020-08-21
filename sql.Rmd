@@ -1,0 +1,73 @@
+---
+title: "SQL"
+output: html_notebook
+---
+
+
+```{r message=FALSE, warning=FALSE}
+library(RSQLite)
+
+```
+
+
+```{r}
+conn <- dbConnect(RSQLite::SQLite(), "wiki_lang.db")
+```
+
+
+```{r}
+dbDisconnect(conn)
+```
+
+
+```{sql connection=conn}
+select * from total where lang='de'
+```
+
+```{sql connection=conn}
+select * from views_per_country where country=='DE'
+```
+
+
+```{sql connection=conn}
+select SUM(views_mobile) as mobile_total from views_per_country where country=='DE'
+```
+
+
+```{sql connection=conn}
+select lang, ROUND(views_mobile/mobile_total,3) as prc  FROM
+(select lang,views_mobile from views_per_country where country=='DE')
+CROSS join
+(select SUM(views_mobile) as mobile_total from views_per_country where country=='DE')
+where prc > 0.0005 order by prc DESC
+```
+
+
+```{sql connection=conn}
+select country,SUM(views_mobile) as mobile_total from views_per_country group by country order by mobile_total DESC
+```
+
+
+```{sql connection=conn}
+select p.country,lang,views_mobile,mobile_total  FROM
+(select country,lang,views_mobile from views_per_country) p
+join
+(select country,SUM(views_mobile) as mobile_total from views_per_country group by country) t
+ON p.country = t.country
+```
+
+
+```{sql connection=conn}
+select p.country,lang,ROUND(views_mobile/mobile_total,3) as prc  FROM
+(select country,lang,views_mobile from views_per_country) p
+join
+(select country,SUM(views_mobile) as mobile_total from views_per_country group by country) t
+ON p.country = t.country
+where prc > 0.01
+```
+
+
+
+
+
+
