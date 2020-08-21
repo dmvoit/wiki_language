@@ -381,3 +381,70 @@ world %>%
 
 http://rstudio-pubs-static.s3.amazonaws.com/467086_decad3a6c9fd44a2a7d9f06c3ae56970.html
 
+
+## Research
+```{r}
+query <- "
+select p.country,lang,ROUND(views_mobile/mobile_total,3) as prc  FROM
+(select country,lang,views_mobile from views_per_country) p
+join
+(select country,SUM(views_mobile) as mobile_total from views_per_country group by country) t
+ON p.country = t.country
+where prc > 0.01 order by p.country, prc DESC
+"
+
+top_langs <-dbGetQuery(conn, query) %>% as_tibble()
+top_langs
+```
+
+```{r}
+
+dbGetQuery(conn, "select * from views_per_country") %>% 
+  select(country, lang, views_mobile) -> views_per_country
+
+views_per_country %>% 
+  group_by(country) %>% 
+  summarise(mobile_total = sum(views_mobile), .groups = 'drop') %>% 
+  right_join(views_per_country, by=c('country')) %>% 
+  mutate(prc=round(views_mobile/mobile_total,3)) %>% 
+  select(country, lang, prc) %>% 
+  filter(prc > 0.01) %>% 
+  arrange(country, desc(prc)) %>% 
+  #####
+  filter(country!='--') %>% 
+  mutate(country=countrycode(country, 'iso2c','country.name', 
+                             custom_match = c('XK' = 'Kosovo')))
+  
+
+```
+
+
+
+```{r}
+library(countrycode)
+
+top_langs %>%
+  filter(lang=='ru') %>% 
+  filter(country!='--') %>% 
+  select(country,prc) %>% 
+  mutate(
+    country=countrycode(country, 'iso2c','country.name'), 
+    cont=countrycode(country, 'country.name','continent')) %>% 
+  arrange(desc(prc))
+```
+
+```{r}
+top_langs %>%
+  filter(country=='KP')
+```
+
+```{r}
+dbGetQuery(conn, "select * from views_per_country where lang=='ru'") %>% 
+  select(country,views_total,views_mobile) %>%
+  filter(country!='--') %>% 
+  mutate(country=countrycode(country, 'iso2c','country.name', 
+                             custom_match = c('XK' = 'Kosovo'))) %>% 
+  mutate(mprc=round(views_mobile/views_total,3))
+  
+```
+
