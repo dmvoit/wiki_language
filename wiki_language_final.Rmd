@@ -99,10 +99,6 @@ get_total_views("de","2018-01")
 
 ```
 ```{r}
-unescape_html <- function(str){
-  xml2::xml_text(xml2::read_html(paste0("<x>", str, "</x>")))
-}
-
 # returns top 140 languages of wikipedia
 get_languages <- function() {
   read_html("https://stats.wikimedia.org/EN/TablesPageViewsMonthlyOriginalCombined.htm") %>%
@@ -110,20 +106,29 @@ get_languages <- function() {
     xml_text() %>% 
     str_split(';\nll1') %>% 
     unlist() %>% 
-    tail(-1) %>% head(-1) %>% head(120) %>% 
+    tail(-1) %>% head(-1) %>% head(150) %>% 
     str_replace_all( "([)']|['()])", "") %>% 
-    str_split(',') %>%  
-    transpose() %>% lapply(FUN = unlist) %>% 
+    str_split(',') %>%
+    lapply(FUN = head, n=2) %>% # remove badly formatted lists
+    transpose() %>% lapply(FUN = unlist) %>% # create 2 vectors with data
     map(as_tibble) -> lang_cols
   
   names(lang_cols[[1]])<-"wiki_name"
   names(lang_cols[[2]])<-"language"
 
-  
-  #lang_cols[[2]]$language<-sapply(lang_cols[[2]]$language, function(x) unescape_html(x))
-
   bind_cols(lang_cols[[1]],lang_cols[[2]]) %>% 
-    mutate(wiki_name=tolower(wiki_name))
+    mutate(wiki_name=tolower(wiki_name)) -> lang_data_
+  
+  # fix language names
+  lang_data_[which(lang$wiki_name=="bat-smg"),2] <- "Samogitian"
+  lang_data_[which(lang$wiki_name=="vo"),2] <- "Volapük"
+  lang_data_[which(lang$wiki_name=="be-x-old"),2] <- "Belarusian Taraškievica"
+  # in September 2015, the domain name of the classical orthography Belarusian Wikipedias 
+  # was changed from be-x-old.wikipedia.org to be-tarask.wikipedia.org
+  lang_data_[which(lang$wiki_name=="be-x-old"),1] <- "be-tarask"
+  
+  lang_data_
+    
 }
 
 lang <- get_languages()
