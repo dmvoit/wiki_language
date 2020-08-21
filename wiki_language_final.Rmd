@@ -27,71 +27,71 @@ library(sf)
 
 get_views_per_country_url <- function(project, site_type, year_month) {
   base_url <- "https://wikimedia.org/api/rest_v1/metrics/pageviews/top-by-country"
-  date <- str_split(year_month,"-")
+  date <- str_split(year_month, "-")
   yr <- date[[1]][1]
   mnth <- date[[1]][2]
   str_glue("{base_url}/{project}/{site_type}/{yr}/{mnth}")
-  
+
 }
 
 
 get_views_per_country_data <- function(url) {
-  GET(url) %>% 
-    content() %>% 
-    pluck(1,1,"countries") %>%  
-    transpose() %>% 
-    lapply(FUN = unlist)  %>% 
-    as_tibble() %>% 
-    select(country,views=views_ceil)
+  GET(url) %>%
+    content() %>%
+    pluck(1, 1, "countries") %>%
+    transpose() %>%
+    lapply(FUN = unlist) %>%
+    as_tibble() %>%
+    select(country, views = views_ceil)
 }
 
 
 get_views_per_country <- function(wiki_lang, year_month) {
-  get_views_per_country_url(str_c(wiki_lang,".wikipedia.org"),"all-access",year_month) %>% 
+  get_views_per_country_url(str_c(wiki_lang, ".wikipedia.org"), "all-access", year_month) %>%
     get_views_per_country_data() -> result
-  
-  get_views_per_country_url(str_c("fr",".wikipedia.org"),"mobile-web",year_month) %>% 
+
+  get_views_per_country_url(str_c(wiki_lang, ".wikipedia.org"), "mobile-web", year_month) %>%
     get_views_per_country_data() -> result_mobile
-  
-  result %>% 
-    left_join(result_mobile,by = c("country")) %>% 
-    select(country, views_total=views.x, views_mobile=views.y) %>% 
-    mutate(views_mobile=ifelse(is.na(views_mobile), 0, views_mobile)) %>% 
-    mutate(lang=wiki_lang,date=year_month) %>% 
-    select(date,lang,country,views_total,views_mobile)
+
+  result %>%
+    left_join(result_mobile, by = c("country")) %>%
+    select(country, views_total = views.x, views_mobile = views.y) %>%
+    mutate(views_mobile = ifelse(is.na(views_mobile), 0, views_mobile)) %>%
+    mutate(lang = wiki_lang, date = year_month) %>%
+    select(date, lang, country, views_total, views_mobile)
   
 }
 
-get_views_per_country("fr","2016-05")
+get_views_per_country("fr", "2016-05")
 ```
 
 ```{r}
 get_total_views_url <- function(project, site_type, year_month) {
   base_url <- "https://wikimedia.org/api/rest_v1/metrics/pageviews/aggregate"
-  
-  sart_date <- ymd(str_c(year_month,"-01"))
-  end_date <- ymd(str_c(format(sart_date, format="%Y-%m"),"-", days_in_month(sart_date)))
-  
-  sart_date_str <- format(sart_date, format='%Y%m%d')
-  end_date_str <- format(end_date, format='%Y%m%d')
-  
+
+  sart_date <- ymd(str_c(year_month, "-01"))
+  end_date <- ymd(str_c(format(sart_date, format = "%Y-%m"), "-", days_in_month(sart_date)))
+
+  sart_date_str <- format(sart_date, format = '%Y%m%d')
+  end_date_str <- format(end_date, format = '%Y%m%d')
+
   str_glue("{base_url}/{project}/{site_type}/user/monthly/{sart_date_str}/{end_date_str}")
-  
+
 }
 get_total_views_data <- function(url) {
-  GET(url) %>% 
-    content() %>%  
-    pluck(1, 1 ,'views')
+  GET(url) %>%
+    content() %>%
+    pluck(1, 1, 'views')
 }
 
 get_total_views <- function(wiki_lang, year_month) {
-  get_total_views_url(str_c(wiki_lang,".wikipedia.org"),"all-access",year_month) %>%  
+  get_total_views_url(str_c(wiki_lang, ".wikipedia.org"), "all-access", year_month) %>%
     get_total_views_data() -> views_total
-  
-  get_total_views_url(str_c(wiki_lang,".wikipedia.org"),"mobile-web",year_month) %>%  
+
+  get_total_views_url(str_c(wiki_lang, ".wikipedia.org"), "mobile-web", year_month) %>%
     get_total_views_data() -> views_mobile
-  
-  tibble(date=year_month,lang=wiki_lang,views_total,views_mobile)
+
+  tibble(date = year_month, lang = wiki_lang, views_total, views_mobile)
 }
 
 
@@ -102,30 +102,30 @@ get_total_views("de","2018-01")
 # returns top 140 languages of wikipedia
 get_languages <- function() {
   read_html("https://stats.wikimedia.org/EN/TablesPageViewsMonthlyOriginalCombined.htm") %>%
-    xml_find_all("//*[contains(text(),'All&nbsp;languages')][3]") %>% 
-    xml_text() %>% 
-    str_split(';\nll1') %>% 
-    unlist() %>% 
-    tail(-1) %>% head(-1) %>% head(150) %>% 
-    str_replace_all( "([)']|['()])", "") %>% 
+    xml_find_all("//*[contains(text(),'All&nbsp;languages')][3]") %>%
+    xml_text() %>%
+    str_split(';\nll1') %>%
+    unlist() %>%
+    tail(-1) %>% head(-1) %>% head(150) %>%
+    str_replace_all("([)']|['()])", "") %>%
     str_split(',') %>%
-    lapply(FUN = head, n=2) %>% # remove badly formatted lists
+    lapply(FUN = head, n = 2) %>% # remove badly formatted lists
     transpose() %>% lapply(FUN = unlist) %>% # create 2 vectors with data
     map(as_tibble) -> lang_cols
-  
-  names(lang_cols[[1]])<-"wiki_name"
-  names(lang_cols[[2]])<-"language"
 
-  bind_cols(lang_cols[[1]],lang_cols[[2]]) %>% 
-    mutate(wiki_name=tolower(wiki_name)) -> lang_data_
+  names(lang_cols[[1]]) <- "wiki_name"
+  names(lang_cols[[2]]) <- "language"
+
+  bind_cols(lang_cols[[1]], lang_cols[[2]]) %>%
+    mutate(wiki_name = tolower(wiki_name)) -> lang_data_
   
   # fix language names
-  lang_data_[which(lang$wiki_name=="bat-smg"),2] <- "Samogitian"
-  lang_data_[which(lang$wiki_name=="vo"),2] <- "Volapük"
-  lang_data_[which(lang$wiki_name=="be-x-old"),2] <- "Belarusian Taraškievica"
+  lang_data_[which(lang$wiki_name == "bat-smg"), 2] <- "Samogitian"
+  lang_data_[which(lang$wiki_name == "vo"), 2] <- "Volapük"
+  lang_data_[which(lang$wiki_name == "be-x-old"), 2] <- "Belarusian Taraškievica"
   # in September 2015, the domain name of the classical orthography Belarusian Wikipedias 
   # was changed from be-x-old.wikipedia.org to be-tarask.wikipedia.org
-  lang_data_[which(lang$wiki_name=="be-x-old"),1] <- "be-tarask"
+  lang_data_[which(lang$wiki_name == "be-x-old"), 1] <- "be-tarask"
   
   lang_data_
     
@@ -159,7 +159,7 @@ date <- "2020-05"
 langs <- get_languages()
 
 for (lang in langs$wiki_name) {
-  dbWriteTable(conn,"total", get_total_views(lang, date) , append = TRUE)
+  dbWriteTable(conn, "total", get_total_views(lang, date), append = TRUE)
   Sys.sleep(1)
 }
 
@@ -168,7 +168,7 @@ dbListTables(conn)
 
 ```{r}
 for (lang in langs$wiki_name) {
-  dbWriteTable(conn,"views_per_country", get_views_per_country(lang,date) , append = TRUE)
+  dbWriteTable(conn, "views_per_country", get_views_per_country(lang, date), append = TRUE)
   Sys.sleep(1)
 }
 
