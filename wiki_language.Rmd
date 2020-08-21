@@ -400,22 +400,24 @@ top_langs
 ```{r}
 
 dbGetQuery(conn, "select * from views_per_country") %>% 
-  select(country, lang, views_mobile) -> views_per_country
-
-views_per_country %>% 
-  group_by(country) %>% 
-  summarise(mobile_total = sum(views_mobile), .groups = 'drop') %>% 
-  right_join(views_per_country, by=c('country')) %>% 
+  select(country, lang, views_mobile) %>% 
+  (function(df) # self reference
+    df %>% 
+     group_by(country) %>% 
+     summarise(mobile_total = sum(views_mobile), .groups = 'drop') %>%
+     right_join(df, by=c('country'))
+   ) %>% 
   mutate(prc=round(views_mobile/mobile_total,3)) %>% 
   select(country, lang, prc) %>% 
   filter(prc > 0.01) %>% 
-  arrange(country, desc(prc)) %>% 
+  arrange(country, desc(prc))  %>% 
   #####
   filter(country!='--') %>% 
   mutate(country=countrycode(country, 'iso2c','country.name', 
-                             custom_match = c('XK' = 'Kosovo')))
+                             custom_match = c('XK' = 'Kosovo'))) %>% 
+  left_join(dbGetQuery(conn, "select * from languages"), by = c('lang'='wiki_name')) %>% 
+  select(country, language, prc)
   
-
 ```
 
 
