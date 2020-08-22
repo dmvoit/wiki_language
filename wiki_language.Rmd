@@ -422,9 +422,7 @@ dbGetQuery(conn, "select * from views_per_country") %>%
 ```
 
 
-
 ```{r}
-library(countrycode)
 
 top_langs %>%
   filter(lang=='ru') %>% 
