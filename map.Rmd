@@ -1,0 +1,102 @@
+---
+title: "map"
+output: html_notebook
+---
+
+
+```{r}
+world <- ne_countries(scale = "medium", returnclass = "sf")
+world[which(world$geounit=='Kosovo'), "iso_a3"] <-'XKX'
+world
+```
+
+```{r}
+top_langs %>% 
+  group_by(country) %>% 
+  slice_max(prc, n=1, with_ties = FALSE) %>% 
+  arrange(country) %>% 
+  mutate(cont=countrycode(country, 'country.name','continent', nomatch = '-')) %>% 
+  filter(cont=='Europe') %>% 
+  ungroup() %>% 
+  select(language) %>% 
+  count(language) %>% 
+  arrange(desc(n)) %>% 
+  filter(n > 1) -> multi_country_lang
+
+top_langs %>% 
+  group_by(country) %>% 
+  slice_max(prc, n=1, with_ties = FALSE) %>% 
+  arrange(country) %>% 
+  mutate(cont=countrycode(country, 'country.name','continent', nomatch = '-')) %>% 
+  filter(cont=='Europe') %>% 
+  mutate(country=countrycode(country, 'country.name','iso3c')) %>% 
+  select(country, language)  %>% 
+  mutate(language = if_else(
+    language %in% multi_country_lang$language,language,'Local')) %>%
+  mutate(language=factor(language))-> europe_country_lang
+
+europe_country_lang
+```
+
+
+
+```{r}
+
+world %>% 
+  left_join(europe_country_lang,by = c("iso_a3"="country")) %>% 
+  ggplot() +
+  geom_sf(aes(fill=language)) +
+  coord_sf(xlim = c(-12, 40), ylim = c(30, 70), expand = T)
+```
+
+
+
+```{r}
+small_counties <- c('Andorra','Åland Islands','Guernsey','Gibraltar','Isle of Man',
+                   'Jersey','Liechtenstein','Monaco','Svalbard & Jan Mayen','San Marino',
+                   'Vatican City')
+regions <- c('Southern Europe','Western Europe','Eastern Europe','Northern Europe',
+             'Western Asia','Northern Africa')
+
+former_soviet <- c('Russia','Tajikistan','Turkmenistan')
+# Faroe Islands	= Denmark, Guernsey = UK
+# Taiwan	-
+# Kosovo	-
+top_langs %>% 
+  filter(!country %in% small_counties) %>% 
+  filter(countrycode(country, 'country.name','un.regionsub.name',
+                     custom_match = c('Kosovo' ='Southern Europe'), nomatch = '-')
+         %in% regions) %>%
+  group_by(country) %>% 
+  slice_max(prc, n=1, with_ties = FALSE) %>% 
+  ungroup() -> top_langs_eur_surround
+
+top_langs_eur_surround %>% 
+  select(language) %>% 
+  count(language) %>% 
+  arrange(desc(n)) %>% 
+  filter(n > 1) -> multi_country_lang_eur_surround
+
+top_langs_eur_surround %>% 
+  mutate(country=countrycode(country, 'country.name','iso3c',
+                             custom_match = c('Kosovo' ='XKX'))) %>% 
+  select(country, language)  %>% 
+  mutate(language = if_else(
+    language %in% multi_country_lang_eur_surround$language,language,'Local')
+    ) -> europe_surround_country_lang
+
+europe_surround_country_lang
+```
+
+```{r}
+
+world %>% 
+  left_join(europe_surround_country_lang,by = c("iso_a3"="country")) %>% 
+  ggplot() +
+  geom_sf(aes(fill=language)) +
+  coord_sf(xlim = c(-22, 41), ylim = c(30, 70), expand = T)
+```
+
+
+
+https://stackoverflow.com/questions/54849662/package-sf-how-to-define-color-by-category
