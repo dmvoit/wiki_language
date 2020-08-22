@@ -16,6 +16,7 @@ library(lubridate) # dates
 library(rnaturalearth)
 library(rnaturalearthdata)
 library(sf)
+library(countrycode)
 ```
 
 
@@ -448,5 +449,62 @@ dbGetQuery(conn, "select * from views_per_country where lang=='ru'") %>%
                              custom_match = c('XK' = 'Kosovo'))) %>% 
   mutate(mprc=round(views_mobile/views_total,3))
   
+```
+
+```{r}
+top_langs %>% 
+  group_by(country) %>% 
+  top_n(n=1, wt = prc) %>%
+  summarise(
+    country=first(country),
+    lang=first(lang),
+    prc=first(prc), 
+    .groups = 'drop') %>% 
+  mutate(country=countrycode(country, 'iso2c','country.name',
+                             custom_match = c('--' = '--','XK' = 'Kosovo')),
+         cont=countrycode(country, 'country.name','continent', nomatch = '-')
+         ) -> countries_top_lang
+
+countries_top_lang
+```
+
+
+```{r}
+countries_top_lang %>% 
+  select(lang) %>% 
+  count(lang) %>% 
+  arrange(desc(n)) %>%
+  filter(n > 1)
+```
+
+```{r}
+top_langs %>% 
+  group_by(country) %>% 
+  slice_max(prc, n=1, with_ties = FALSE) %>% 
+  arrange(country) %>% 
+  mutate(cont=countrycode(country, 'country.name','continent', nomatch = '-'))
+```
+
+```{r}
+top_langs %>% 
+  group_by(country) %>% 
+  slice_max(prc, n=1, with_ties = FALSE) %>% 
+  arrange(country) %>% 
+  mutate(cont=countrycode(country, 'country.name','continent', nomatch = '-')) %>% 
+  filter(cont=='Europe')
+```
+
+```{r}
+top_langs %>% 
+  group_by(country) %>% 
+  slice_max(prc, n=1, with_ties = FALSE) %>% 
+  arrange(country) %>% 
+  mutate(cont=countrycode(country, 'country.name','continent', nomatch = '-')) %>% 
+  filter(cont=='Europe') %>% 
+  ungroup() %>% 
+  select(language) %>% 
+  count(language) %>% 
+  arrange(desc(n)) %>% 
+  filter(n > 1)
 ```
 
