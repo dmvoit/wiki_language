@@ -11,6 +11,7 @@ library(RSQLite)
 
 
 ```{r}
+# https://blog.exploratory.io/accessing-sqlite-with-rsqlite-and-querying-with-dplyr-in-r-script-7eecf1e1b5b0
 conn <- dbConnect(RSQLite::SQLite(), "wiki_lang.db")
 ```
 
@@ -67,7 +68,14 @@ where prc > 0.01
 ```
 
 
-
+```{sql connection=conn}
+select p.country,lang,ROUND(views_mobile/mobile_total,3) as prc  FROM
+(select country,lang,views_mobile from views_per_country) p
+join
+(select country,SUM(views_mobile) as mobile_total from views_per_country group by country) t
+ON p.country = t.country
+where prc > 0.01 order by p.country, prc DESC
+```
 
 
 
